@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models import Holding
+from app.models import Holding, User
+from app.dependencies import get_current_user
 from app.services.price_api import get_crypto_price, get_etf_price
 
 router = APIRouter(prefix="/holdings", tags=["holdings"])
@@ -9,12 +10,18 @@ router = APIRouter(prefix="/holdings", tags=["holdings"])
 CRYPTO_SYMBOLS = {"BTC", "ETH"}
 
 @router.get("")
-def get_holdings(session: Session = Depends(get_session)):
-    return session.exec(select(Holding)).all()
+def get_holdings(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
 
 @router.get("/enriched")
-def get_enriched_holdings(session: Session = Depends(get_session)):
-    holdings = session.exec(select(Holding)).all()
+def get_enriched_holdings(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    holdings = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
     result = []
     for h in holdings:
         try:
@@ -38,16 +45,26 @@ def get_enriched_holdings(session: Session = Depends(get_session)):
     return result
 
 @router.post("", status_code=201)
-def create_holding(holding: Holding, session: Session = Depends(get_session)):
+def create_holding(
+    holding: Holding,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    holding.user_id = current_user.id
     session.add(holding)
     session.commit()
     session.refresh(holding)
     return holding
 
 @router.put("/{holding_id}")
-def update_holding(holding_id: int, updated: Holding, session: Session = Depends(get_session)):
+def update_holding(
+    holding_id: int,
+    updated: Holding,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     holding = session.get(Holding, holding_id)
-    if not holding:
+    if not holding or holding.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Holding not found")
     holding.asset = updated.asset
     holding.type = updated.type
@@ -59,9 +76,13 @@ def update_holding(holding_id: int, updated: Holding, session: Session = Depends
     return holding
 
 @router.delete("/{holding_id}", status_code=204)
-def delete_holding(holding_id: int, session: Session = Depends(get_session)):
+def delete_holding(
+    holding_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     holding = session.get(Holding, holding_id)
-    if not holding:
+    if not holding or holding.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Holding not found")
     session.delete(holding)
     session.commit()

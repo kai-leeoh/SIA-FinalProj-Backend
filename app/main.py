@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import create_db_and_tables
-from app.routers import holdings, prices
+from app.routers import holdings, prices, auth
+
 app = FastAPI(title="Portfolio Tracker API")
 
 app.add_middleware(
@@ -12,9 +13,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(holdings.router)
 app.include_router(prices.router)
 
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+
