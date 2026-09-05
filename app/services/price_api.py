@@ -3,6 +3,7 @@ import time
 import requests
 
 TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY")
+COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
 
 _price_cache = {}
 CACHE_DURATION = 60  # seconds
@@ -17,7 +18,7 @@ def _get_cached_price(symbol: str):
 def _set_cached_price(symbol: str, price: float):
     _price_cache[symbol] = (price, time.time())
 
-def get_crypto_price(symbol: str) -> float:
+def get_crypto_price(symbol: str) -> float | None:
     symbol = symbol.upper()
     cached = _get_cached_price(symbol)
     if cached is not None:
@@ -30,15 +31,19 @@ def get_crypto_price(symbol: str) -> float:
 
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {"ids": coin_id, "vs_currencies": "usd"}
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    data = response.json()
-    price = data[coin_id]["usd"]
+    headers = {"x-cg-demo-api-key": COINGECKO_API_KEY} if COINGECKO_API_KEY else {}
 
-    _set_cached_price(symbol, price)
-    return price
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        price = data[coin_id]["usd"]
+        _set_cached_price(symbol, price)
+        return price
+    except requests.exceptions.RequestException:
+        return None
 
-def get_etf_price(symbol: str) -> float:
+def get_etf_price(symbol: str) -> float | None:
     symbol = symbol.upper()
     cached = _get_cached_price(symbol)
     if cached is not None:
@@ -46,12 +51,15 @@ def get_etf_price(symbol: str) -> float:
 
     url = "https://api.twelvedata.com/price"
     params = {"symbol": symbol, "apikey": TWELVE_DATA_API_KEY}
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    data = response.json()
-    if "price" not in data:
-        raise ValueError(f"Could not fetch price for {symbol}: {data}")
-    price = float(data["price"])
 
-    _set_cached_price(symbol, price)
-    return price
+    try:
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        if "price" not in data:
+            return None
+        price = float(data["price"])
+        _set_cached_price(symbol, price)
+        return price
+    except requests.exceptions.RequestException:
+        return None
