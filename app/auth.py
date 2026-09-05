@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 from jose import jwt, JWTError
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
-config = dotenv_values(env_path)
+config = {**os.environ, **dotenv_values(env_path)}
 
 SECRET_KEY = config.get("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
