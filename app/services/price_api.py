@@ -57,9 +57,11 @@ def get_etf_price(symbol: str) -> float | None:
         response.raise_for_status()
         data = response.json()
         if "price" not in data:
+            print(f"Twelve Data response missing 'price': {data}")  # debug
             return None
         price = float(data["price"])
         _set_cached_price(symbol, price)
         return price
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
+        print(f"Twelve Data request failed for {symbol}: {e}")  # debug
         return None
