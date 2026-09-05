@@ -1,0 +1,1 @@
+to run type uvicorn app.main:app --reload --port 4000 in terminal
