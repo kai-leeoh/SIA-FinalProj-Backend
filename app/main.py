@@ -6,7 +6,7 @@ app = FastAPI(title="Portfolio Tracker API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # for dev; restrict this later
+    allow_origins=["https://sia-finalproj-frontend.onrender.com"],  # for dev; restrict this later
     allow_methods=["*"],
     allow_headers=["*"],
 )
