@@ -7,8 +7,6 @@ from app.services.price_api import get_crypto_price, get_etf_price
 
 router = APIRouter(prefix="/holdings", tags=["holdings"])
 
-CRYPTO_SYMBOLS = {"BTC", "ETH"}
-
 @router.get("")
 def get_holdings(
     session: Session = Depends(get_session),
@@ -25,7 +23,7 @@ def get_enriched_holdings(
     result = []
     for h in holdings:
         try:
-            price = get_crypto_price(h.asset) if h.asset in CRYPTO_SYMBOLS else get_etf_price(h.asset)
+            price = get_crypto_price(h.asset) if h.type == "crypto" else get_etf_price(h.asset)
         except Exception:
             price = None
 
