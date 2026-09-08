@@ -15,8 +15,8 @@ class Holding(SQLModel, table=True):
     cost_basis: float
     user_id: int = Field(foreign_key="user.id")
 
-    class HoldingCreate(SQLModel):
-        asset: str
-        type: str
-        quantity: float
-        cost_basis: float
+class HoldingCreate(SQLModel):
+    asset: str
+    type: str
+    quantity: float
+    cost_basis: float
