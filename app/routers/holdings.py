@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models import Holding, User
+from app.models import Holding, HoldingCreate, User
 from app.dependencies import get_current_user
 from app.services.price_api import get_crypto_price, get_etf_price
 
@@ -44,20 +44,20 @@ def get_enriched_holdings(
 
 @router.post("", status_code=201)
 def create_holding(
-    holding: Holding,
+    holding: HoldingCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    holding.user_id = current_user.id
-    session.add(holding)
+    db_holding = Holding(**holding.dict(), user_id=current_user.id)
+    session.add(db_holding)
     session.commit()
-    session.refresh(holding)
-    return holding
+    session.refresh(db_holding)
+    return db_holding
 
 @router.put("/{holding_id}")
 def update_holding(
     holding_id: int,
-    updated: Holding,
+    updated: HoldingCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
