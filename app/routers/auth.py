@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.models import User
 from app.auth import hash_password, verify_password, create_access_token, verify_google_token
+from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -61,3 +62,6 @@ def google_auth(data: GoogleAuthRequest, session: Session = Depends(get_session)
 
     token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer"}
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {"email": current_user.email}
