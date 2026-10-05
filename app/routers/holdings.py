@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.models import Holding, HoldingCreate, User
 from app.dependencies import get_current_user
-from app.services.price_api import get_crypto_price, get_etf_price
+from app.services.price_api import get_asset_price
 
 router = APIRouter(prefix="/holdings", tags=["holdings"])
 
@@ -23,7 +23,7 @@ def get_enriched_holdings(
     result = []
     for h in holdings:
         try:
-            price = get_crypto_price(h.asset) if h.type == "crypto" else get_etf_price(h.asset)
+            price = get_asset_price(h.type, h.asset)
         except Exception:
             price = None
 

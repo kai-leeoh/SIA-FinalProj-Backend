@@ -8,10 +8,10 @@ COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
 _price_cache = {}
 CACHE_DURATION = 60
 
-def _get_cached_price(key: str):
+def _get_cached_price(key: str, ttl: int = CACHE_DURATION):
     if key in _price_cache:
         cached_price, cached_time = _price_cache[key]
-        if time.time() - cached_time < CACHE_DURATION:
+        if time.time() - cached_time < ttl:
             return cached_price
     return None
 
@@ -60,3 +60,58 @@ def get_etf_price(symbol: str) -> float | None:
         return price
     except requests.exceptions.RequestException:
         return None
+
+def get_php_to_usd() -> float | None:
+    cached = _get_cached_price("FX:PHPUSD", ttl=3600)
+    if cached is not None:
+        return cached
+    try:
+        response = requests.get(
+            "https://api.frankfurter.dev/v1/latest",
+            params={"base": "PHP", "symbols": "USD"},
+            timeout=5,
+        )
+        response.raise_for_status()
+        rate = response.json()["rates"]["USD"]
+        _set_cached_price("FX:PHPUSD", rate)
+        return rate
+    except (requests.exceptions.RequestException, KeyError):
+        return None
+
+
+def get_pse_price(asset: str) -> float | None:
+    symbol = asset.upper().removesuffix(".PSE")
+    key = f"PSE:{symbol}"
+    cached = _get_cached_price(key)
+    if cached is not None:
+        return cached
+
+    try:
+        response = requests.get(
+            "https://api.twelvedata.com/price",
+            params={"symbol": symbol, "mic_code": "XPHS", "apikey": TWELVE_DATA_API_KEY},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if "price" not in data:
+            return None
+        php_price = float(data["price"])
+    except requests.exceptions.RequestException:
+        return None
+
+    rate = get_php_to_usd()
+    if rate is None:
+        return None
+
+    usd_price = php_price * rate
+    _set_cached_price(key, usd_price)
+    return usd_price
+
+
+def get_asset_price(asset_type: str, asset: str) -> float | None:
+    if asset_type == "crypto":
+        return get_crypto_price(asset)
+    if asset_type == "stock":
+        return get_pse_price(asset)
+    return get_etf_price(asset)

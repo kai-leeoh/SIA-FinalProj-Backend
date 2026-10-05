@@ -1,10 +1,36 @@
 from fastapi import APIRouter
 import requests
 import os
+import time
 
 router = APIRouter(prefix="/search", tags=["search"])
 
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
+TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY")
+
+_pse_cache = {"data": [], "time": 0.0}
+
+
+def get_pse_stocks():
+    if _pse_cache["data"] and time.time() - _pse_cache["time"] < 86400:
+        return _pse_cache["data"]
+    try:
+        resp = requests.get(
+            "https://api.twelvedata.com/stocks",
+            params={"country": "Philippines", "apikey": TWELVE_DATA_API_KEY},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = [
+            s for s in resp.json().get("data", [])
+            if s.get("mic_code") == "XPHS" and s.get("type") in ("Common Stock", "REIT")
+        ]
+        _pse_cache["data"] = data
+        _pse_cache["time"] = time.time()
+        return data
+    except requests.exceptions.RequestException:
+        return _pse_cache["data"]
+
 
 @router.get("")
 def search_assets(query: str):
@@ -31,6 +57,20 @@ def search_assets(query: str):
             })
     except requests.exceptions.RequestException:
         pass
+
+    # Philippine stocks (PSE)
+    q = query.lower()
+    pse_matches = [
+        s for s in get_pse_stocks()
+        if q in s["symbol"].lower() or q in s["name"].lower()
+    ]
+    pse_matches.sort(key=lambda s: not s["symbol"].lower().startswith(q))
+    for s in pse_matches[:5]:
+        results.append({
+            "value": f"{s['symbol']}.PSE",
+            "label": f"{s['name']} ({s['symbol']}, PSE)",
+            "type": "stock",
+        })
 
     # Stock/ETF search via Twelve Data
     try:
