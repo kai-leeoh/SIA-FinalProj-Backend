@@ -79,6 +79,32 @@ def get_php_to_usd() -> float | None:
         return None
 
 
+def _get_pse_price_php(symbol: str) -> float | None:
+    # 1. Twelve Data
+    try:
+        response = requests.get(
+            "https://api.twelvedata.com/price",
+            params={"symbol": symbol, "mic_code": "XPHS", "apikey": TWELVE_DATA_API_KEY},
+            timeout=5,
+        )
+        data = response.json()
+        if "price" in data:
+            return float(data["price"])
+        print("Twelve Data PSE response:", data)
+    except (requests.exceptions.RequestException, ValueError):
+        pass
+
+    # 2. Yahoo Finance fallback
+    try:
+        import yfinance as yf
+        price = yf.Ticker(f"{symbol}.PS").fast_info["last_price"]
+        if price:
+            return float(price)
+    except Exception as e:
+        print("yfinance PSE error:", e)
+    return None
+
+
 def get_pse_price(asset: str) -> float | None:
     symbol = asset.upper().removesuffix(".PSE")
     key = f"PSE:{symbol}"
@@ -86,18 +112,8 @@ def get_pse_price(asset: str) -> float | None:
     if cached is not None:
         return cached
 
-    try:
-        response = requests.get(
-            "https://api.twelvedata.com/price",
-            params={"symbol": symbol, "mic_code": "XPHS", "apikey": TWELVE_DATA_API_KEY},
-            timeout=5,
-        )
-        response.raise_for_status()
-        data = response.json()
-        if "price" not in data:
-            return None
-        php_price = float(data["price"])
-    except requests.exceptions.RequestException:
+    php_price = _get_pse_price_php(symbol)
+    if php_price is None:
         return None
 
     rate = get_php_to_usd()
