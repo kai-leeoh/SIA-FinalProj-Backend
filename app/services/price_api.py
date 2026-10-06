@@ -80,21 +80,6 @@ def get_php_to_usd() -> float | None:
 
 
 def _get_pse_price_php(symbol: str) -> float | None:
-    # 1. Twelve Data
-    try:
-        response = requests.get(
-            "https://api.twelvedata.com/price",
-            params={"symbol": symbol, "mic_code": "XPHS", "apikey": TWELVE_DATA_API_KEY},
-            timeout=5,
-        )
-        data = response.json()
-        if "price" in data:
-            return float(data["price"])
-        print("Twelve Data PSE response:", data)
-    except (requests.exceptions.RequestException, ValueError):
-        pass
-
-    # 2. Yahoo Finance fallback
     try:
         import yfinance as yf
         price = yf.Ticker(f"{symbol}.PS").fast_info["last_price"]
